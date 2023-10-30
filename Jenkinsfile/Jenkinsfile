@@ -1,0 +1,35 @@
+pipeline {
+    environment {
+        dockerImage = ""
+    }
+    agent any
+    stages {
+        stage("Build") {
+            steps {
+                git "https://github.com/ahmetcyng/hello-world-flask.git"
+                script {
+                    dockerImage = docker.build("192.168.2.176:5000/hello-world-flask")
+                }
+            }
+        }
+        stage("Push") {
+            steps {
+                script {
+                    docker.withRegistry("https://192.168.2.176:5000/", "privateregistrycredential") {
+                        dockerImage.push()
+                    }
+                }
+            }
+        }
+        stage("Deploy") {
+            steps {
+                script {
+                    def remote = [name: "server1", host: "192.168.2.229", user: "server1", password: "Password1", allowAnyHosts: "true"]
+                    sshCommand remote: remote, command: "curl -o deployment.yaml https://raw.githubusercontent.com/ahmetcyng/declerative-deployment/main/deployment.yaml"
+                    sshCommand remote: remote, command: "kubectl apply -f deployment.yaml"
+                }
+            }
+        }
+    }
+}
+
